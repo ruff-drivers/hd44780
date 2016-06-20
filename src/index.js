@@ -5,7 +5,11 @@
 
 'use strict';
 
+var async = require('ruff-async');
 var driver = require('ruff-driver');
+var util = require('util');
+
+var Queue = async.Queue;
 
 var Register = {
     instruction: 0,
@@ -51,6 +55,8 @@ module.exports = driver({
         this._d6 = inputs['d6'];
         this._d7 = inputs['d7'];
 
+        this._queue = new Queue(this._writeHandler);
+
         // Turn on backlight.
         this._p3.write(1);
 
@@ -70,8 +76,8 @@ module.exports = driver({
         this._writeInstruction(Instruction.setEntryMode | EntryMode.increment);
         this._writeInstruction(Instruction.returnHome, next);
     },
-    detach: function () {
-        this.turnOff();
+    detach: function (callback) {
+        this.turnOff(callback);
     },
     exports: {
         /**
@@ -81,7 +87,7 @@ module.exports = driver({
          * @param {number} [delay] The device could be busy, delay several milliseconds to ensure data get processed.
          * @param {number} [callback]
          */
-        _processWrite: function (rs, rw, bits, delay, callback) {
+        _writeHandler: function (rs, rw, bits, delay, callback) {
             this._rs.write(rs);
             this._rw.write(rw);
 
@@ -100,7 +106,7 @@ module.exports = driver({
             });
 
             function done() {
-                invokeCallback(callback, undefined, undefined, true);
+                util.invokeCallback(callback);
             }
         },
         /**
@@ -111,41 +117,12 @@ module.exports = driver({
          * @param {number} [callback]
          */
         _write: function (rs, rw, bits, delay, callback) {
-            var that = this;
-
             if (typeof delay === 'function') {
                 callback = delay;
                 delay = undefined;
             }
 
-            var item = {
-                args: [rs, rw, bits, delay],
-                callback: callback
-            };
-
-            if (this._queue) {
-                this._queue.push(item);
-                return;
-            }
-
-            var queue = this._queue = [item];
-            var activeItem;
-
-            next();
-
-            function next(error) {
-                if (activeItem) {
-                    invokeCallback(activeItem.callback, error);
-                }
-
-                activeItem = queue.shift();
-
-                if (activeItem) {
-                    that._processWrite.apply(that, activeItem.args.concat(next));
-                } else {
-                    that._queue = undefined;
-                }
-            }
+            this._queue.push(this, [rs, rw, bits, delay], callback);
         },
         /**
          * @param {number} bits
@@ -188,7 +165,7 @@ module.exports = driver({
         print: function (text, callback) {
             var that = this;
 
-            eachSeries(text.split(''), function (char, next) {
+            async.eachSeries(text.split(''), function (char, next) {
                 var bits = char.charCodeAt(0);
 
                 that._write(Register.data, ReadWrite.write, bits >> 4);
@@ -244,37 +221,3 @@ module.exports = driver({
         }
     }
 });
-
-function invokeCallback(callback, error, value, sync) {
-    if (typeof callback !== 'function') {
-        if (error) {
-            throw error;
-        } else {
-            return;
-        }
-    }
-
-    if (sync) {
-        callback(error, value);
-    } else {
-        setImmediate(callback, error, value);
-    }
-}
-
-function eachSeries(values, handler, callback) {
-    next();
-
-    function next(error) {
-        if (error) {
-            invokeCallback(callback, error, undefined, true);
-            return;
-        }
-
-        if (!values.length) {
-            invokeCallback(callback, undefined, undefined, true);
-            return;
-        }
-
-        handler(values.shift(), next);
-    }
-}
