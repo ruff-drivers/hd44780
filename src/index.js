@@ -11,6 +11,13 @@ var util = require('util');
 
 var Queue = async.Queue;
 
+var DDRAM_ADDRESSES = [
+    0x00,
+    0x40,
+    0x14,
+    0x54
+];
+
 var Register = {
     instruction: 0,
     data: 1
@@ -153,24 +160,44 @@ module.exports = driver({
             this._writeInstruction(Instruction.setDisplayControl | this._displayControl, callback);
         },
         /*
+         * @param {string} text
+         * @param {Function} [callback]
+         */
+        print: function (text, callback) {
+            for (var i = 0; i < text.length; i++) {
+                var bits = text.charCodeAt(i);
+
+                this._write(Register.data, ReadWrite.write, bits >> 4);
+                this._write(Register.data, ReadWrite.write, bits, i === text.length - 1 ? callback : undefined);
+            }
+        },
+        /*
          * @param {Function} [callback]
          */
         clear: function (callback) {
             this._writeInstruction(Instruction.clearDisplay, 10, callback);
         },
         /*
-         * @param {string} text
+         * Set cursor coordinates, (0, 0) refer to the first character of the first line.
+         * @param {number} x
+         * @param {number} y
          * @param {Function} [callback]
          */
-        print: function (text, callback) {
-            var that = this;
-
-            async.eachSeries(text.split(''), function (char, next) {
-                var bits = char.charCodeAt(0);
-
-                that._write(Register.data, ReadWrite.write, bits >> 4);
-                that._write(Register.data, ReadWrite.write, bits, next);
-            }, callback);
+        setCursor: function (x, y, callback) {
+            var bits = Instruction.setDdramAddress | (DDRAM_ADDRESSES[y] + x);
+            this._writeInstruction(bits, callback);
+        },
+        /*
+         * @param {Function} [callback]
+         */
+        showCursor: function (callback) {
+            this._setDisplayControl(DisplayControl.cursor, true, callback);
+        },
+        /*
+         * @param {Function} [callback]
+         */
+        hideCursor: function (callback) {
+            this._setDisplayControl(DisplayControl.cursor, false, callback);
         },
         /*
          * @param {Function} [callback]
@@ -187,18 +214,6 @@ module.exports = driver({
         /*
          * @param {Function} [callback]
          */
-        cursorOn: function (callback) {
-            this._setDisplayControl(DisplayControl.cursor, true, callback);
-        },
-        /*
-         * @param {Function} [callback]
-         */
-        cursorOff: function (callback) {
-            this._setDisplayControl(DisplayControl.cursor, false, callback);
-        },
-        /*
-         * @param {Function} [callback]
-         */
         turnOn: function (callback) {
             this._setDisplayControl(DisplayControl.display, true, callback);
         },
@@ -207,17 +222,6 @@ module.exports = driver({
          */
         turnOff: function (callback) {
             this._setDisplayControl(DisplayControl.display, false, callback);
-        },
-        /*
-         * Set cursor coordinates, top left = (0, 0).
-         * @param {number} x
-         * @param {number} y
-         * @param {Function} [callback]
-         */
-        setCursor: function (x, y, callback) {
-            var ys = [0x00, 0x40, 0x14, 0x54];
-            var bits = Instruction.setDdramAddress | (ys[y] + x);
-            this._writeInstruction(bits, callback);
         }
     }
 });

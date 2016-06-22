@@ -6,7 +6,7 @@ HD44780 LCD Controller Driver for Ruff.
 
 ## Supported Engines
 
-* Ruff: 1.2.0
+* Ruff: ~1.2.0
 
 ## Supported Models
 
@@ -27,6 +27,46 @@ rap device add <device-id>
 # Then enter a supported model, for example:
 # ? model: hd44780
 ```
+
+## API References
+
+### Methods
+
+#### `print(text, [callback])`
+
+Print text at current cursor.
+
+#### `clear([callback])`
+
+Clear the display.
+
+#### `setCursor(x, y, [callback])`
+
+Set cursor coordinates, (0, 0) refer to the first character of the first line.
+
+#### `showCursor([callback])`
+
+Show cursor.
+
+#### `hideCursor([callback])`
+
+Hide cursor.
+
+#### `blinkOn([callback])`
+
+Turn on cursor blink.
+
+#### `blinkOff([callback])`
+
+Turn off cursor blink.
+
+#### `turnOn([callback])`
+
+Turn on the display.
+
+#### `turnOff([callback])`
+
+Turn off the display.
 
 ## Contributing
 
