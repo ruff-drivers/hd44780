@@ -1,7 +1,5 @@
 {
-    "models": [
-        "LCD1602"
-    ],
+    "models": [],
     "inputs": {
         "rs": {
             "type": "gpio",
