@@ -222,6 +222,18 @@ module.exports = driver({
          */
         turnOff: function (callback) {
             this._setDisplayControl(DisplayControl.display, false, callback);
+        },
+        /*
+         * @param {Function}
+         */
+        backlightOn: function () {
+            this._p3.write(1);
+        },
+        /*
+         * @param {Function}
+         */
+        backlightOff: function () {
+            this._p3.write(0);
         }
     }
 });
